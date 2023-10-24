@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Top 100 Exploration Projects</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.24/"></script>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #layerListContainer {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 999;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      display: none;
+    }
+
+    #showHideLayers {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background-color: #0079c1;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .layer-list-button {
+      position: absolute;
+      top: 6px; 
+      left: 10px; 
+      z-index: 1000;
+      background-color: #252424;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    /* Styles for the attribute table */
+    #attributeTable {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      display: none;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 4px;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    /* Setting table to be scrollable vertically */
+    #table {
+      width: 100%;
+    }
+
+    #tableBody {
+      max-height: 150px;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+
+    /* Sticky headers */
+    #table thead {
+      position: sticky;
+      top: 0;
+      background-color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  <button id="showHideLayers">Show Layer List</button>
+  <div id="layerListContainer">
+    <div id="layerList"></div>
+    <button id="showHideAll" class="layer-list-button esri-icon-visible"></button>
+
+  </div>
+  
+  <!-- Attribute table container -->
+  <div id="attributeTable">
+    <table id="table">
+      <thead>
+        <tr id="tableHeader"></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+  
+  <!-- div to display the value on hovering -->
+  <div id="displayFieldElement" style="position: absolute; top: 10px; left: 10px; background-color: white; padding: 5px;"></div>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/LayerList",
+      "esri/PopupTemplate",
+    ], function (Map, MapView, FeatureLayer, LayerList, PopupTemplate) {
+      var map = new Map({
+        basemap: "streets"
+      });
+
+      var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-98, 60],
+        zoom: 3
+      });
+
+      var layersInfo = [
+      {
+        url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/0",
+        title: "Top 100 Exploration Projects",
+        //displayField: "project_name",
+        fields: ["OBJECTID", "Shape", "count", "project_name", "province_en", "province_fr", "commodity_group_en", "commodity_group_fr"],
+      },
+      {
+        url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/1",
+        title: "900A",
+      },
+      {
+        url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/2",
+        title: "Oil and Gas",
+        //displayField: "minesite_en",
+        fields: ["province_en", "minesite_en", "product_en", "type_en", "latitude", "longitude", "OBJECTID"],
+      },
+      {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/3",
+          title: "Producing Mines",
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/4",
+          title: "Metal mines",
+          //displayField: "operation_name_en",
+          fields: ["operation_group_en", "province_en", "operation_name_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/5",
+          title: "Nonmetal mines",
+          //displayField: "operation_name_en",
+          fields: ["operation_group_en", "province_en", "operation_name_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/6",
+          title: "Coal mines",
+          //displayField: "operation_name_en",
+          fields: ["operation_group_en", "province_en", "operation_name_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/7",
+          title: "Oil sands mines",
+          //displayField: "operation_name_en",
+          fields: ["operation_group_en", "province_en", "operation_name_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/8",
+          title: "Metallurgical Works",
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/9",
+          title: "Smelters and refineries",
+          //displayField: "operation_en",
+          fields: ["operation_type_en", "province_en", "operation_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/10",
+          title: "Steel mills",
+          //displayField: "operation_en",
+          fields: ["operation_type_en", "province_en", "operation_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/11",
+          title: "Ferroalloy plants",
+          //displayField: "operation_en",
+          fields: ["operation_type_en", "province_en", "operation_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        },
+        {
+          url: "https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/900A_and_top_100_en/MapServer/12",
+          title: "Automobile shredders",
+          //displayField: "operation_en",
+          fields: ["operation_type_en", "province_en", "operation_en", "operator_owners_en", "facilities_code_en_spelt", "commodity_group_en_spelt", "commodity_en_spelt", "OBJECTID"],
+        }
+      ];
+
+      var layers = layersInfo.map(function (layerInfo) {
+        return new FeatureLayer({
+          url: layerInfo.url,
+          title: layerInfo.display,
+          outFields: ["*"],
+          //popupTemplate: new PopupTemplate({
+            title: layerInfo.title,
+            content: createPopupContent(layerInfo.fields)
+          //})
+        });
+      });
+
+      map.addMany(layers);
+
+      var showHideLayersButton = document.getElementById("showHideLayers");
+      var showHideAllButton = document.getElementById("showHideAll");
+      var layerListContainer = document.getElementById("layerListContainer");
+
+      showHideLayersButton.addEventListener("click", function () {
+        if (layerListContainer.style.display === "none") {
+          layerListContainer.style.display = "block";
+        } else {
+          layerListContainer.style.display = "none";
+        }
+      });
+
+      showHideAllButton.addEventListener("click", function () {
+        layers.forEach(function (layer) {
+          if (layer.visible) {
+            layer.visible = false;
+          } else {
+            layer.visible = true;
+          }
+          toggleVisibilityIcon();
+        });
+
+        function toggleVisibilityIcon() {
+          if (showHideAllButton.classList.contains("esri-icon-visible")) {
+            showHideAllButton.classList.remove("esri-icon-visible");
+            showHideAllButton.classList.add("esri-icon-non-visible");
+          } else {
+            showHideAllButton.classList.remove("esri-icon-non-visible");
+            showHideAllButton.classList.add("esri-icon-visible");
+          }
+        }
+      });
+
+      // Initialize Layer List widget
+      var layerList = new LayerList({
+        view: view,
+        listItemCreatedFunction: function (event) {
+          const item = event.item;
+          // Custom action to show the attribute table
+          item.actionsSections = [
+            [
+              {
+                title: "Show Attribute Table",
+                className: "esri-icon-table",
+                id: "show-attributes"
+              }
+            ]
+          ];
+        }
+      });
+
+      // Layer List widget to the layerListContainer
+      layerList.container = "layerList";
+
+      layerList.on("trigger-action", function (event) {
+        if (event.action.id === "show-attributes") {
+          var layerTitle = event.item.title;
+          var layer = layers.find(function (layer) {
+            return layer.title === layerTitle;
+          });
+
+          if (layer) {
+            // Querying features from the layer
+            layer.queryFeatures().then(function (result) {
+              if (result.features.length > 0) {
+                var attributesList = result.features.map(function(feature) {
+                  return feature.attributes;
+                });
+                displayAttributeTable(layerTitle, attributesList, layer.fields);
+              }
+            });
+          }
+        }
+      });
+
+      view.when(function () {
+        var hoverTimeout; 
+
+        // Pointer-move event listener to display the display field value directly on hovering
+        view.on("pointer-move", function (event) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = setTimeout(function () {
+            view.hitTest(event).then(function (response) {
+              if (response.results.length > 0) {
+                var feature = response.results[0].graphic;
+                var layerTitle = feature.layer.title;
+                var displayField = feature.attributes[feature.layer.displayField];
+                displayDisplayField(layerTitle, displayField);
+              }
+            });
+          }, 300);
+        });
+
+        view.on("click", function (event) {
+          view.hitTest(event).then(function (response) {
+            if (response.results.length > 0) {
+              var feature = response.results[0].graphic;
+              if (feature.layer) {
+                var layerTitle = feature.layer.title;
+                var attributes = feature.attributes;
+                displayAttributeTable(layerTitle, [attributes], feature.layer.fields);
+              }
+            }
+          });
+        });
+      });
+
+      function createPopupContent(fields) {
+        return function (feature) {
+          var content = "<table>";
+          content += "<tbody>";
+
+          fields.forEach(function (field) {
+            if (field.name !== "Shape" && field.name !== "OBJECTID" && field.name !== "Count" && field.name !== "Province / Territoire" && field.name !== "Groupe de produits minéraux") {
+              // Remove the "Shape" field
+              content += "<tr>";
+              content += "<td><strong>" + field.alias + ":</strong></td>";
+              content += "<td>" + feature.attributes[field.name] + "</td>";
+              content += "</tr>";
+            }
+          });
+
+          content += "</tbody></table>";
+
+          return content;
+        };
+      }
+
+      function displayAttributeTable(layerTitle, attributesList, fields) {
+        var tableHeader = document.getElementById("tableHeader");
+  var tableBody = document.getElementById("tableBody");
+
+  tableHeader.innerHTML = "";
+  tableBody.innerHTML = "";
+
+  var contentHeader = "";
+  var contentBody = "";
+
+  // Defining the fields to add if they don't exist in the layer
+  var additionalFields = [
+    "Operation Group",
+    "Operation",
+    "Operator / Owners",
+    "Facility"
+  ];
+
+  fields.forEach(function (field) {
+    var fieldName = field.name;
+
+    if (
+      fieldName !== "Shape" &&
+      fieldName !== "OBJECTID" &&
+      fieldName !== "count" &&
+      fieldName !== "Province / Territoire" &&
+      fieldName !== "Groupe de produits minéraux" &&
+      !fieldName.endsWith("_fr") &&
+      additionalFields.indexOf(fieldName) === -1
+    ) {
+      contentHeader += "<th>" + field.alias + "</th>";
+    }
+  });
+
+  // Adding additional fields if they don't exist in the layer
+  additionalFields.forEach(function (fieldName) {
+    var field = fields.find(function (f) {
+      return f.name === fieldName;
+    });
+
+    if (field) {
+      contentHeader += "<th>" + field.alias + "</th>";
+    }
+  });
+
+  attributesList.forEach(function (attributes) {
+    contentBody += "<tr>";
+
+    fields.forEach(function (field) {
+      var fieldName = field.name;
+
+      if (
+        fieldName !== "Shape" &&
+        fieldName !== "OBJECTID" &&
+        fieldName !== "count" &&
+        fieldName !== "Province / Territoire" &&
+        fieldName !== "Groupe de produits minéraux" &&
+        !fieldName.endsWith("_fr")
+      ) {
+        contentBody += "<td>" + attributes[fieldName] + "</td>";
+      }
+    });
+
+    // Adding additional fields if they don't exist in the layer
+    additionalFields.forEach(function (fieldName) {
+      var field = fields.find(function (f) {
+        return f.name === fieldName;
+      });
+
+      if (field) {
+        contentBody += "<td>" + (attributes[fieldName] || "") + "</td>";
+      }
+    });
+
+    contentBody += "</tr>";
+  });
+
+  tableHeader.innerHTML = contentHeader;
+  tableBody.innerHTML = contentBody;
+
+  var attributeTable = document.getElementById("attributeTable");
+  attributeTable.style.display = "block";
+      }
+
+      function displayDisplayField(layerTitle, displayField) {
+        var displayFieldElement = document.getElementById("displayFieldElement");
+        displayFieldElement.textContent = layerTitle + ": " + displayField;
+      }
+
+      document.addEventListener("click", function (event) {
+        var displayFieldElement = document.getElementById("displayFieldElement");
+        var attributeTable = document.getElementById("attributeTable");
+        
+        if (
+          event.target !== displayFieldElement &&
+          event.target !== attributeTable &&
+          !displayFieldElement.contains(event.target) &&
+          !attributeTable.contains(event.target)
+        ) {
+          displayFieldElement.textContent = "";
+          attributeTable.style.display = "none";
+        }
+      });
+    });
+  </script>
+</body>
+</html>
